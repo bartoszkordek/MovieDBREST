@@ -1,6 +1,6 @@
 import aiosqlite
 
-_MOVIES_DB_NAME = 'movies_1.db'
+_MOVIES_DB_NAME = 'movies.db'
 
 async def get_db():
     db = await aiosqlite.connect(_MOVIES_DB_NAME)
