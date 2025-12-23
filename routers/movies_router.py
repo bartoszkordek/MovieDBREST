@@ -49,7 +49,7 @@ async def get_single_movie(movie_id: int, service: MovieService = Depends(get_mo
     }
 
 
-@router.post('')
+@router.post('', status_code=status.HTTP_201_CREATED)
 async def add_movie(params: dict[str, Any], service: MovieService = Depends(get_movie_service)):
     movie_id = await service.add_movie(
         title=params['title'],

@@ -54,7 +54,7 @@ async def get_single_actor_movies(actor_id: int, service: ActorService = Depends
         )
 
 
-@router.post('')
+@router.post('', status_code=status.HTTP_201_CREATED)
 async def add_actor(params: dict[str, Any], service: ActorService = Depends(get_actor_service)):
     name = params['name']
     surname = params['surname']
