@@ -1,3 +1,23 @@
-.venv
+# Virtual environments
+.venv/
 venv/
+ENV/
+
+# PyCharm and IDEs
 .idea/
+.vscode/
+*.swp
+*.iml
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local Database
+movies.db
+*.sqlite3
+
+# OS specific (Mac/Windows)
+.DS_Store
+Thumbs.db
