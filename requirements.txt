@@ -13,3 +13,9 @@ pydantic==2.12.5
 # --- Testing ---
 pytest==8.3.4
 pytest-asyncio==0.25.0
+coverage==7.6.12
+
+# Development & Linting
+black==24.10.0
+flake8==7.1.1
+mypy==1.11.2

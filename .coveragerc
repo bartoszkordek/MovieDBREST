@@ -1,0 +1,18 @@
+# .coveragerc to control coverage.py
+[run]
+omit =
+    */scripts/*
+    */sql_queries/*
+    */test_*
+    */venv/*
+    */.github/*
+    */__main__*
+
+[report]
+exclude_lines =
+    if __name__ == .__main__.:
+    def main\(
+    pragma: no cover
+
+show_missing = True
+skip_covered = False
