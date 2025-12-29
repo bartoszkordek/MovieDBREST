@@ -31,6 +31,7 @@ CREATE TABLE movie_actor_through (
 @pytest.fixture
 async def test_db_conn():
     async with aiosqlite.connect(":memory:") as db:
+        db.row_factory = aiosqlite.Row
         await db.execute("PRAGMA foreign_keys = ON")
         await db.executescript(SCHEMA)
         yield db

@@ -8,31 +8,32 @@ class ActorService:
         self.connection = connection
         self.lock = lock
 
-    async def get_actors(self) -> list[tuple]:
-        query = 'SELECT * FROM actor'
+    async def get_actors(self) -> list[dict]:
+        query = 'SELECT id, name, surname FROM actor'
         try:
             async with self.connection.execute(query) as cursor:
                 actors_list = await cursor.fetchall()
-                return actors_list
+                return [dict(actor) for actor in actors_list]
         except Exception as e:
             print(f"Experienced error during actors select: {e}")
             return []
 
-    async def get_actor(self, actor_id: int) -> tuple | None:
-        query = 'SELECT * FROM actor WHERE id=?'
+    async def get_actor(self, actor_id: int) -> dict | None:
+        query = 'SELECT id, name, surname FROM actor WHERE id=?'
         try:
             async with self.connection.execute(query, (actor_id,)) as cursor:
                 actor = await cursor.fetchone()
-                return actor
+                return dict(actor)
         except Exception as e:
             print(f"Experienced error during actor {actor_id} select: {e}")
             return None
 
-    async def get_actor_movies(self, actor_id: int) -> list[tuple]:
+    async def get_actor_movies(self, actor_id: int) -> list[dict]:
         check_actor_query = 'SELECT 1 FROM actor WHERE id=?'
-        actor_movies_relation_query = ('SELECT movie.* FROM movie '
-                                       'INNER JOIN movie_actor_through ON movie_actor_through.movie_id=movie.id '
-                                       'WHERE actor_id=?')
+        actor_movies_relation_query = ('SELECT m.id, m.title, m.director, m.year, m.description '
+                                       'FROM movie m '
+                                       'INNER JOIN movie_actor_through mat ON mat.movie_id=m.id '
+                                       'WHERE mat.actor_id=?')
         try:
             async with self.connection.execute(check_actor_query, (actor_id,)) as cursor:
                 if not await cursor.fetchone():
@@ -40,7 +41,7 @@ class ActorService:
 
             async with self.connection.execute(actor_movies_relation_query, (actor_id,)) as cursor:
                 movies = await cursor.fetchall()
-                return movies
+                return [dict(movie) for movie in movies]
         except Exception as e:
             print(f"Experienced error during actor movies {actor_id} select: {e}")
             return []

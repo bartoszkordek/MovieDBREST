@@ -20,43 +20,30 @@ def get_actor_service(db: aiosqlite.Connection = Depends(get_db)):
 @router.get('', response_model=list[ActorResponse])
 async def get_actors(service: ActorService = Depends(get_actor_service)):
     actors = await service.get_actors()
-    return [{"id": a[0], "name": a[1], "surname": a[2]} for a in actors]
+    return actors
 
 
 @router.get('/{actor_id}', response_model=ActorResponse)
-async def get_single_actor(actor_id: int = Path(..., ge=1, description="Actor ID should be grater or equal 1"),
+async def get_single_actor(actor_id: int = Path(..., ge=1, description="Actor ID should be greater or equal 1"),
                            service: ActorService = Depends(get_actor_service)):
     actor = await service.get_actor(actor_id)
     if actor is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Actor with ID {actor_id} not found")
-    output = {'id': actor[0], 'name': actor[1], 'surname': actor[2]}
-    return output
+    return actor
 
 
 @router.get('/{actor_id}/movies', response_model=list[ActorMovieResponse])
-async def get_single_actor_movies(actor_id: int = Path(..., ge=1, description="Actor ID should be grater or equal 1"),
+async def get_single_actor_movies(actor_id: int = Path(..., ge=1, description="Actor ID should be greater or equal 1"),
                                   service: ActorService = Depends(get_actor_service)):
-    try:
-        actor = await service.get_actor(actor_id)
-        if actor is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Actor with ID {actor_id} not found")
-        movies = await service.get_actor_movies(actor_id)
-        if not movies:
-            return []
-        return [
-            {
-                "id": m[0],
-                "title": m[1],
-                "director": m[2],
-                "year": m[3],
-                "description": m[4]
-            } for m in movies
-        ]
-    except ValueError as e:
+    actor = await service.get_actor(actor_id)
+    if actor is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
+            detail=f"Actor with ID {actor_id} not found"
         )
+
+    movies = await service.get_actor_movies(actor_id)
+    return movies
 
 
 @router.post('', status_code=status.HTTP_201_CREATED)

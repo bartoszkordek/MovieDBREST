@@ -8,13 +8,15 @@ class MovieService:
         self.connection = connection
         self.lock = lock
 
-    async def get_movies(self) -> list[tuple]:
-        query = ('SELECT '
-                 'm.id, m.title, m.director, m.year, m.description, '
-                 'a.id, a.name, a.surname '
-                 'FROM movie m '
-                 'LEFT JOIN movie_actor_through mat ON m.id = mat.movie_id '
-                 'LEFT JOIN actor a ON a.id = mat.actor_id')
+    async def get_movies(self) -> list[dict]:
+        query = (
+            'SELECT '
+            'm.id AS movie_id, m.title, m.director, m.year, m.description, '
+            'a.id AS actor_id, a.name, a.surname '
+            'FROM movie m '
+            'LEFT JOIN movie_actor_through mat ON m.id = mat.movie_id '
+            'LEFT JOIN actor a ON a.id = mat.actor_id'
+        )
         try:
             async with self.connection.execute(query) as cursor:
                 rows = await cursor.fetchall()
@@ -23,40 +25,42 @@ class MovieService:
                     return []
 
                 movies_data = {}
-                actors_list = []
                 for row in rows:
-                    m_id = row[0]
+                    movie_id = row['movie_id']
 
-                    if m_id not in movies_data:
-                        movies_data[m_id] = {
-                            'info': row[0:5],
+                    if movie_id not in movies_data:
+                        movies_data[movie_id] = {
+                            'id': row['movie_id'],
+                            'title': row['title'],
+                            'director': row['director'],
+                            'year': row['year'],
+                            'description': row['description'],
                             'actors': []
                         }
 
-                    if row[5] is not None:
-                        actor_tuple = (row[5], row[6], row[7])
-                        movies_data[m_id]['actors'].append(actor_tuple)
+                    if row['actor_id'] is not None:
+                        movies_data[movie_id]['actors'].append({
+                            'id': row['actor_id'],
+                            'name': row['name'],
+                            'surname': row['surname']
+                        })
 
-                result = []
-                for m_id in movies_data:
-                    m_info = movies_data[m_id]['info']
-                    actors = movies_data[m_id]['actors']
-                    result.append((*m_info, actors))
-
-                return result
+                return list(movies_data.values())
 
         except Exception as e:
             print(f"Experienced error during movies select: {e}")
             return []
 
-    async def get_movie(self, movie_id: int) -> tuple | None:
-        query = ('SELECT '
-                 'm.id, m.title, m.director, m.year, m.description, '
-                 'a.id, a.name, a.surname '
-                 'FROM movie m '
-                 'LEFT JOIN movie_actor_through mat ON m.id = mat.movie_id '
-                 'LEFT JOIN actor a ON a.id = mat.actor_id '
-                 'WHERE m.id = ?')
+    async def get_movie(self, movie_id: int) -> dict | None:
+        query = (
+            'SELECT '
+            'm.id AS movie_id, m.title, m.director, m.year, m.description, '
+            'a.id AS actor_id, a.name, a.surname '
+            'FROM movie m '
+            'LEFT JOIN movie_actor_through mat ON m.id = mat.movie_id '
+            'LEFT JOIN actor a ON a.id = mat.actor_id '
+            'WHERE m.id = ?'
+        )
         try:
             async with self.connection.execute(query, (movie_id,)) as cursor:
                 rows = await cursor.fetchall()
@@ -65,16 +69,24 @@ class MovieService:
                     return None
 
                 first_row = rows[0]
-                m_id, m_title, m_director, m_year, m_desc = first_row[0:5]
+                movie = {
+                    'id': first_row['movie_id'],
+                    'title': first_row['title'],
+                    'director': first_row['director'],
+                    'year': first_row['year'],
+                    'description': first_row['description'],
+                    'actors': []
+                }
 
-                actors_list = []
                 for row in rows:
-                    if row[5] is not None:
-                        actor_tuple = (row[5], row[6], row[7])
-                        actors_list.append(actor_tuple)
+                    if row['actor_id'] is not None:
+                        movie['actors'].append({
+                            'id': row['actor_id'],
+                            'name': row['name'],
+                            'surname': row['surname']
+                        })
 
-                return m_id, m_title, m_director, m_year, m_desc, actors_list
-
+                return movie
         except Exception as e:
             print(f"Experienced error during movie {movie_id} select: {e}")
             return None

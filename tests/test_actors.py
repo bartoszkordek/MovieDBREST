@@ -62,8 +62,8 @@ async def test_add_actor_success(client, test_db_conn):
     ) as cursor:
         movie_row = await cursor.fetchone()
         assert movie_row is not None
-        assert movie_row[0] == "Tom"
-        assert movie_row[1] == "Hanks"
+        assert movie_row['name'] == "Tom"
+        assert movie_row['surname'] == "Hanks"
 
 
 async def test_add_actor_whitespace_cleaning(client, test_db_conn):
@@ -95,8 +95,8 @@ async def test_add_actor_complex_names_success(client, test_db_conn, name, surna
 
     async with test_db_conn.execute("SELECT name, surname FROM actor ORDER BY id DESC LIMIT 1") as cursor:
         row = await cursor.fetchone()
-        assert row[0] == name
-        assert row[1] == surname
+        assert row['name'] == name
+        assert row['surname'] == surname
 
 
 @pytest.mark.parametrize("payload, error_loc", [
@@ -131,14 +131,14 @@ async def test_update_actor_success(client, test_db_conn):
     ) as cursor:
         actor_row = await cursor.fetchone()
         assert actor_row is not None
-        assert actor_row == ("Tom", "Hanks")
+        assert tuple(actor_row) == ("Tom", "Hanks")
 
     async with test_db_conn.execute(
             "SELECT name, surname FROM actor WHERE id = 2"
     ) as cursor:
         actor_row = await cursor.fetchone()
         assert actor_row is not None
-        assert actor_row == ("Tom", "Hardy")
+        assert tuple(actor_row) == ("Tom", "Hardy")
 
 
 @pytest.mark.parametrize("method, url", [
@@ -225,7 +225,7 @@ async def test_delete_actor_success(client, test_db_conn):
     ) as cursor:
         actor_row = await cursor.fetchone()
         assert actor_row is not None
-        assert actor_row == ("Tom", "Hardy")
+        assert tuple(actor_row) == ("Tom", "Hardy")
 
 
 async def test_delete_actor_and_relations_success(client, test_db_conn):

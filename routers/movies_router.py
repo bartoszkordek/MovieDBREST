@@ -20,18 +20,7 @@ def get_movie_service(db: aiosqlite.Connection = Depends(get_db)):
 @router.get('', response_model=list[MovieResponse])
 async def get_movies(service: MovieService = Depends(get_movie_service)):
     movies = await service.get_movies()
-    output = []
-    for m in movies:
-        movie = {
-            'id': m[0],
-            'title': m[1],
-            'director': m[2],
-            'year': m[3],
-            'description': m[4],
-            'actors': [{"id": a[0], "name": a[1], "surname": a[2]} for a in m[5]]
-        }
-        output.append(movie)
-    return output
+    return movies
 
 
 @router.get('/{movie_id}', response_model=MovieResponse)
@@ -40,14 +29,7 @@ async def get_single_movie(movie_id: int = Path(..., ge=1, description="Movie ID
     movie = await service.get_movie(movie_id)
     if movie is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Movie with ID {movie_id} not found")
-    return {
-        'id': movie[0],
-        'title': movie[1],
-        'director': movie[2],
-        'year': movie[3],
-        'description': movie[4],
-        'actors': [{"id": a[0], "name": a[1], "surname": a[2]} for a in movie[5]]
-    }
+    return movie
 
 
 @router.post('', status_code=status.HTTP_201_CREATED)

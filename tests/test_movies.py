@@ -38,10 +38,10 @@ async def test_add_movie_success(client, test_db_conn):
     ) as cursor:
         movie_row = await cursor.fetchone()
         assert movie_row is not None
-        assert movie_row[0] == "Inception"
-        assert movie_row[1] == "Christopher Nolan"
-        assert movie_row[2] == 2010
-        assert movie_row[3] == "Dream within a dream"
+        assert movie_row['title'] == "Inception"
+        assert movie_row['director'] == "Christopher Nolan"
+        assert movie_row['year'] == 2010
+        assert movie_row['description'] == "Dream within a dream"
 
     async with test_db_conn.execute(
             "SELECT actor_id FROM movie_actor_through WHERE movie_id = 1"
@@ -94,10 +94,10 @@ async def test_update_movie_success(client, test_db_conn):
     ) as cursor:
         movie_row = await cursor.fetchone()
         assert movie_row is not None
-        assert movie_row[0] == "Inception"
-        assert movie_row[1] == "Christopher Nolan"
-        assert movie_row[2] == 2010
-        assert movie_row[3] == "Dream within a dream"
+        assert movie_row['title'] == "Inception"
+        assert movie_row['director'] == "Christopher Nolan"
+        assert movie_row['year'] == 2010
+        assert movie_row['description'] == "Dream within a dream"
 
     async with test_db_conn.execute(
             "SELECT actor_id FROM movie_actor_through WHERE movie_id = 1"
