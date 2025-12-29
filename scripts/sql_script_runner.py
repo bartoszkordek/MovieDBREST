@@ -1,9 +1,9 @@
 import sqlite3
 
-connection = sqlite3.connect('movies.db')
+connection = sqlite3.connect('../movies.db')
 cursor = connection.cursor()
 
-with open('sql_queries/schema_update.sql', 'r', encoding='utf-8') as file:
+with open('../sql_queries/schema_update.sql', 'r', encoding='utf-8') as file:
     sql_script = file.read()
 
 try:
