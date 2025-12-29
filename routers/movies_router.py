@@ -1,7 +1,5 @@
 import aiosqlite
-from fastapi import APIRouter, HTTPException, Depends, Path
-
-from starlette import status
+from fastapi import APIRouter, HTTPException, Depends, Path, status
 
 from database.movies_db_connect import get_db, db_write_lock
 from schemas import MovieCreateRequest, MovieUpdateRequest, MovieResponse
