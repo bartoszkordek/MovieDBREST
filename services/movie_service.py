@@ -1,6 +1,9 @@
 import asyncio
-
 import aiosqlite
+
+from loguru import logger
+
+logger.add("logs/movie_service.log", rotation="10 MB", level="INFO")
 
 
 class MovieService:
@@ -47,8 +50,8 @@ class MovieService:
 
                 return list(movies_data.values())
 
-        except Exception as e:
-            print(f"Experienced error during movies select: {e}")
+        except Exception:
+            logger.exception("Failed to fetch movies list from database")
             return []
 
     async def get_movie(self, movie_id: int) -> dict | None:
@@ -87,8 +90,8 @@ class MovieService:
                         })
 
                 return movie
-        except Exception as e:
-            print(f"Experienced error during movie {movie_id} select: {e}")
+        except Exception:
+            logger.exception(f"Failed to fetch movie {movie_id} from database")
             return None
 
     async def add_movie(self, title: str, director: str, year: int, description: str, actors_ids: list[int]) -> int:
@@ -109,11 +112,12 @@ class MovieService:
                                                           add_movie_and_actor_relation_args)
                     await self.connection.commit()
 
+                    logger.info(f"Successfully added new movie: {title} (ID: {movie_id})")
                     return movie_id
 
             except Exception as e:
                 await self.connection.rollback()
-                print(f"Experienced error during add movie: {e}")
+                logger.exception(f"Error occurred while adding movie: {title}")
                 raise e
 
     async def update_movie(self, movie_id: int, title: str, director: str, year: int, description: str,
@@ -140,11 +144,12 @@ class MovieService:
                                                           add_movie_and_actor_relation_args)
 
                     await self.connection.commit()
+                    logger.info(f"Successfully updated movie {movie_id}")
                     return True
 
-            except Exception as e:
+            except Exception:
                 await self.connection.rollback()
-                print(f"Experienced error during movie {movie_id} update: {e}")
+                logger.exception(f"Experienced error during movie {movie_id} update")
                 return False
 
     async def delete_movie(self, movie_id: int) -> bool:
@@ -169,9 +174,10 @@ class MovieService:
                     return False
 
                 await self.connection.commit()
+                logger.info(f"Successfully deleted movie {movie_id}")
                 return True
 
-            except Exception as e:
+            except Exception:
                 await self.connection.rollback()
-                print(f"Experienced error during movie {movie_id} delete: {e}")
+                logger.exception(f"Experienced error during movie {movie_id} delete")
                 return False

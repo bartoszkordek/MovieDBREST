@@ -1,6 +1,9 @@
 import asyncio
-
 import aiosqlite
+
+from loguru import logger
+
+logger.add("logs/actor_service.log", rotation="10 MB", level="INFO")
 
 
 class ActorService:
@@ -14,8 +17,8 @@ class ActorService:
             async with self.connection.execute(query) as cursor:
                 actors_list = await cursor.fetchall()
                 return [dict(actor) for actor in actors_list]
-        except Exception as e:
-            print(f"Experienced error during actors select: {e}")
+        except Exception:
+            logger.exception("Failed to fetch actors list from database")
             return []
 
     async def get_actor(self, actor_id: int) -> dict | None:
@@ -24,8 +27,8 @@ class ActorService:
             async with self.connection.execute(query, (actor_id,)) as cursor:
                 actor = await cursor.fetchone()
                 return dict(actor)
-        except Exception as e:
-            print(f"Experienced error during actor {actor_id} select: {e}")
+        except Exception:
+            logger.exception(f"Failed to fetch {actor_id} from database")
             return None
 
     async def get_actor_movies(self, actor_id: int) -> list[dict]:
@@ -37,13 +40,14 @@ class ActorService:
         try:
             async with self.connection.execute(check_actor_query, (actor_id,)) as cursor:
                 if not await cursor.fetchone():
+                    logger.warning(f"Actor with ID {actor_id} not found")
                     raise ValueError(f"Actor with ID {actor_id} not found")
 
             async with self.connection.execute(actor_movies_relation_query, (actor_id,)) as cursor:
                 movies = await cursor.fetchall()
                 return [dict(movie) for movie in movies]
-        except Exception as e:
-            print(f"Experienced error during actor movies {actor_id} select: {e}")
+        except Exception:
+            logger.exception(f"Experienced error during fetching actor {actor_id} movies")
             return []
 
     async def add_actor(self, name: str, surname: str) -> int:
@@ -55,13 +59,16 @@ class ActorService:
                     actor_id = cursor.lastrowid
 
                     if actor_id is None:
+                        logger.exception(
+                            f"Error occurred while adding actor: {name} {surname}. Failed to retrieve actor ID.")
                         raise Exception("Failed to retrieve actor ID")
 
                     await self.connection.commit()
+                    logger.info(f"Successfully added new actor: {name} {surname} (ID: {actor_id})")
                     return actor_id
             except Exception as e:
                 await self.connection.rollback()
-                print(f"Experienced error during add actor: {e}")
+                logger.exception(f"Error occurred while adding actor: {name} {surname}")
                 raise e
 
     async def update_actor(self, actor_id: int, name: str, surname: str) -> bool:
@@ -74,10 +81,11 @@ class ActorService:
                         await self.connection.rollback()
                         return False
                 await self.connection.commit()
+                logger.info(f"Successfully updated actor {actor_id}")
                 return True
-            except Exception as e:
+            except Exception:
                 await self.connection.rollback()
-                print(f"Experienced error during actor {actor_id} update: {e}")
+                logger.exception(f"Experienced error during actor {actor_id} update")
                 return False
 
     async def delete_actor(self, actor_id: int) -> bool:
@@ -101,9 +109,10 @@ class ActorService:
                     return False
 
                 await self.connection.commit()
+                logger.info(f"Successfully deleted actor {actor_id}")
                 return True
 
-            except Exception as e:
+            except Exception:
                 await self.connection.rollback()
-                print(f"Experienced error during actor {actor_id} delete: {e}")
+                logger.exception(f"Experienced error during actor {actor_id} delete")
                 return False

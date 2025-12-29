@@ -5,6 +5,9 @@ uvicorn==0.34.0
 # --- Database ---
 aiosqlite==0.20.0
 
+# --- Logging & Monitoring ---
+loguru==0.7.3
+
 # --- HTTP Clients & Validation ---
 httpx==0.28.1
 requests==2.32.3

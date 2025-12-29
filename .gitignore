@@ -18,6 +18,10 @@ htmlcov/
 movies.db
 *.sqlite3
 
+# Application logs
+logs/
+*.log
+
 # OS specific (Mac/Windows)
 .DS_Store
 Thumbs.db
