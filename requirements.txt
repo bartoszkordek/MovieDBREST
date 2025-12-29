@@ -1,0 +1,24 @@
+# --- Server and Framework ---
+fastapi[standard]==0.115.6
+uvicorn==0.34.0
+
+# --- Database ---
+aiosqlite==0.20.0
+
+# --- Logging & Monitoring ---
+loguru==0.7.3
+
+# --- HTTP Clients & Validation ---
+httpx==0.28.1
+requests==2.32.3
+pydantic==2.12.5
+
+# --- Testing ---
+pytest==8.3.4
+pytest-asyncio==0.25.0
+coverage==7.6.12
+
+# Development & Linting
+black==24.10.0
+flake8==7.1.1
+mypy==1.11.2

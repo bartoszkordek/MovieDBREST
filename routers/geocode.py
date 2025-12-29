@@ -6,8 +6,6 @@ router = APIRouter(
     tags=["geocode"]
 )
 
-app = FastAPI()
-
 
 @router.get("")
 def geocode(lat: float, lon: float):
@@ -18,6 +16,3 @@ def geocode(lat: float, lon: float):
         return response.json()
     else:
         raise HTTPException(status_code=response.status_code, detail="Cannot pull geolocalization data.")
-
-
-app.include_router(router)
