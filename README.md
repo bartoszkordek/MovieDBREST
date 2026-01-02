@@ -23,7 +23,7 @@ featuring strict data validation and automated code quality tools.
 ├── schemas/             # Pydantic models & validation rules  
 ├── sql_queries/         # Raw SQL migration scripts  
 ├── tests/               # Unit and Integration tests  
-├── exceptions           # Custom business exceptions (e.g., ActorNotFoundError)
+├── exceptions           # Custom business exceptions (e.g., ActorNotFoundError)  
 ├── .coveragerc          # Coverage configuration  
 └── .gitignore           # Ignored files (movies.db, .venv, .DS_Store)  
 
