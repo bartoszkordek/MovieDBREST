@@ -2,6 +2,7 @@ import aiosqlite
 from fastapi import APIRouter, HTTPException, Depends, Path, status
 
 from database.movies_db_connect import get_db, db_write_lock
+from exceptions import ActorNotFoundError
 from schemas import ActorResponse, ActorMovieResponse, ActorCreateRequest, ActorUpdateRequest
 from services.actor_service import ActorService
 
@@ -33,15 +34,10 @@ async def get_single_actor(actor_id: int = Path(..., ge=1, description="Actor ID
 @router.get('/{actor_id}/movies', response_model=list[ActorMovieResponse])
 async def get_single_actor_movies(actor_id: int = Path(..., ge=1, description="Actor ID should be greater or equal 1"),
                                   service: ActorService = Depends(get_actor_service)):
-    actor = await service.get_actor(actor_id)
-    if actor is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Actor with ID {actor_id} not found"
-        )
-
-    movies = await service.get_actor_movies(actor_id)
-    return movies
+    try:
+        return await service.get_actor_movies(actor_id)
+    except ActorNotFoundError as e:
+        raise HTTPException(status_code=404, detail=e.message)
 
 
 @router.post('', status_code=status.HTTP_201_CREATED)
@@ -50,9 +46,6 @@ async def add_actor(actor_data: ActorCreateRequest, service: ActorService = Depe
         name=actor_data.name,
         surname=actor_data.surname
     )
-    if actor_id is None:
-        raise HTTPException(status_code=500, detail="Cannot save actor in database.")
-
     return {"message": f"Actor {actor_id} added successfully"}
 
 
@@ -60,27 +53,22 @@ async def add_actor(actor_data: ActorCreateRequest, service: ActorService = Depe
 async def update_actor(actor_data: ActorUpdateRequest,
                        actor_id: int = Path(..., ge=1, description="Actor ID should be greater or equal 1"),
                        service: ActorService = Depends(get_actor_service)):
-    updated_actor = await service.update_actor(
-        actor_id=actor_id,
-        name=actor_data.name,
-        surname=actor_data.surname
-    )
-
-    if not updated_actor:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Actor with ID {actor_id} not found"
+    try:
+        await service.update_actor(
+            actor_id=actor_id,
+            name=actor_data.name,
+            surname=actor_data.surname
         )
-    return {"message": f"Actor {actor_id} updated successfully"}
+        return {"message": f"Actor {actor_id} updated successfully"}
+    except ActorNotFoundError as e:
+        raise HTTPException(status_code=404, detail=e.message)
 
 
 @router.delete('/{actor_id}')
 async def delete_actor(actor_id: int = Path(..., ge=1, description="Actor ID should be greater or equal 1"),
                        service: ActorService = Depends(get_actor_service)):
-    deleted_actor = await service.delete_actor(actor_id)
-    if not deleted_actor:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Actor with ID {actor_id} not found"
-        )
-    return {"message": f"Actor {actor_id} deleted successfully"}
+    try:
+        await service.delete_actor(actor_id)
+        return {"message": f"Actor {actor_id} deleted successfully"}
+    except ActorNotFoundError as e:
+        raise HTTPException(status_code=404, detail=e.message)

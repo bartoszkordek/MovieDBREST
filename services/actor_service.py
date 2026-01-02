@@ -3,6 +3,8 @@ import aiosqlite
 
 from loguru import logger
 
+from exceptions import ActorNotFoundError
+
 logger.add("logs/actor_service.log", rotation="10 MB", level="INFO")
 
 
@@ -18,18 +20,20 @@ class ActorService:
                 actors_list = await cursor.fetchall()
                 return [dict(actor) for actor in actors_list]
         except Exception:
-            logger.exception("Failed to fetch actors list from database")
-            return []
+            logger.exception("Database error while fetching actors list")
+            raise
 
     async def get_actor(self, actor_id: int) -> dict | None:
         query = 'SELECT id, name, surname FROM actor WHERE id=?'
         try:
             async with self.connection.execute(query, (actor_id,)) as cursor:
                 actor = await cursor.fetchone()
+                if actor is None:
+                    return None
                 return dict(actor)
         except Exception:
-            logger.exception(f"Failed to fetch {actor_id} from database")
-            return None
+            logger.exception(f"Database error while fetching actor {actor_id}")
+            raise
 
     async def get_actor_movies(self, actor_id: int) -> list[dict]:
         check_actor_query = 'SELECT 1 FROM actor WHERE id=?'
@@ -41,20 +45,24 @@ class ActorService:
             async with self.connection.execute(check_actor_query, (actor_id,)) as cursor:
                 if not await cursor.fetchone():
                     logger.warning(f"Actor with ID {actor_id} not found")
-                    raise ValueError(f"Actor with ID {actor_id} not found")
+                    raise ActorNotFoundError(actor_id)
 
             async with self.connection.execute(actor_movies_relation_query, (actor_id,)) as cursor:
                 movies = await cursor.fetchall()
                 return [dict(movie) for movie in movies]
+        except ActorNotFoundError:
+            raise
         except Exception:
-            logger.exception(f"Experienced error during fetching actor {actor_id} movies")
-            return []
+            logger.exception(f"Database error while fetching movies for actor {actor_id}")
+            raise
 
     async def add_actor(self, name: str, surname: str) -> int:
         query = 'INSERT INTO actor (name, surname) VALUES (?, ?)'
         args = (name, surname)
         async with self.lock:
             try:
+                await self.connection.execute("BEGIN IMMEDIATE")
+
                 async with self.connection.execute(query, args) as cursor:
                     actor_id = cursor.lastrowid
 
@@ -66,53 +74,57 @@ class ActorService:
                     await self.connection.commit()
                     logger.info(f"Successfully added new actor: {name} {surname} (ID: {actor_id})")
                     return actor_id
-            except Exception as e:
+            except Exception:
                 await self.connection.rollback()
-                logger.exception(f"Error occurred while adding actor: {name} {surname}")
-                raise e
+                logger.exception(f"Database error while adding actor: {name} {surname}")
+                raise
 
-    async def update_actor(self, actor_id: int, name: str, surname: str) -> bool:
+    async def update_actor(self, actor_id: int, name: str, surname: str) -> None:
         query = 'UPDATE actor SET name=?, surname=? WHERE id=?'
         args = (name, surname, actor_id)
         async with self.lock:
             try:
+                await self.connection.execute("BEGIN IMMEDIATE")
+
                 async with self.connection.execute(query, args) as cursor:
                     if cursor.rowcount == 0:
                         await self.connection.rollback()
-                        return False
+                        logger.info(f"Actor with id {actor_id} not found for update")
+                        raise ActorNotFoundError(actor_id)
+
                 await self.connection.commit()
-                logger.info(f"Successfully updated actor {actor_id}")
-                return True
+                logger.info(f"Successfully updated actor {actor_id}: {name} {surname}")
+
+            except ActorNotFoundError:
+                raise
             except Exception:
                 await self.connection.rollback()
-                logger.exception(f"Experienced error during actor {actor_id} update")
-                return False
+                logger.exception(f"Database error during update of actor {actor_id}: {name} {surname}")
+                raise
 
-    async def delete_actor(self, actor_id: int) -> bool:
+    async def delete_actor(self, actor_id: int) -> None:
         select_actor_query = 'SELECT 1 FROM actor WHERE id=?'
         delete_actor_relation_query = 'DELETE FROM movie_actor_through WHERE actor_id=?'
         delete_actor_query = 'DELETE FROM actor WHERE id=?'
         async with self.lock:
             try:
-                await self.connection.execute("BEGIN")
+                await self.connection.execute("BEGIN IMMEDIATE")
 
                 async with self.connection.execute(select_actor_query, (actor_id,)) as cursor:
                     if not await cursor.fetchone():
                         await self.connection.rollback()
-                        return False
+                        logger.info(f"Actor {actor_id} not found")
+                        raise ActorNotFoundError(actor_id)
 
                 await self.connection.execute(delete_actor_relation_query, (actor_id,))
-
-                cursor = await self.connection.execute(delete_actor_query, (actor_id,))
-                if cursor.rowcount == 0:
-                    await self.connection.rollback()
-                    return False
+                await self.connection.execute(delete_actor_query, (actor_id,))
 
                 await self.connection.commit()
                 logger.info(f"Successfully deleted actor {actor_id}")
-                return True
 
+            except ActorNotFoundError:
+                raise
             except Exception:
                 await self.connection.rollback()
-                logger.exception(f"Experienced error during actor {actor_id} delete")
-                return False
+                logger.exception(f"Database error during deletion of actor {actor_id}")
+                raise

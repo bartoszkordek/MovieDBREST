@@ -3,6 +3,8 @@ import aiosqlite
 
 from loguru import logger
 
+from exceptions import MovieNotFoundError
+
 logger.add("logs/movie_service.log", rotation="10 MB", level="INFO")
 
 
@@ -51,8 +53,8 @@ class MovieService:
                 return list(movies_data.values())
 
         except Exception:
-            logger.exception("Failed to fetch movies list from database")
-            return []
+            logger.exception("Database error while fetching actors list")
+            raise
 
     async def get_movie(self, movie_id: int) -> dict | None:
         query = (
@@ -91,8 +93,8 @@ class MovieService:
 
                 return movie
         except Exception:
-            logger.exception(f"Failed to fetch movie {movie_id} from database")
-            return None
+            logger.exception(f"Database error while fetching movie {movie_id}")
+            raise
 
     async def add_movie(self, title: str, director: str, year: int, description: str, actors_ids: list[int]) -> int:
         add_movie_query = 'INSERT INTO movie (title, director, year, description) VALUES (?, ?, ?, ?)'
@@ -101,7 +103,7 @@ class MovieService:
 
         async with self.lock:
             try:
-                await self.connection.execute("BEGIN")
+                await self.connection.execute("BEGIN IMMEDIATE")
 
                 async with self.connection.execute(add_movie_query, add_movie_args) as cursor:
                     movie_id = cursor.lastrowid
@@ -115,13 +117,13 @@ class MovieService:
                     logger.info(f"Successfully added new movie: {title} (ID: {movie_id})")
                     return movie_id
 
-            except Exception as e:
+            except Exception:
                 await self.connection.rollback()
-                logger.exception(f"Error occurred while adding movie: {title}")
-                raise e
+                logger.exception(f"Database error while adding movie: {title}, {director}, {year}, {description}")
+                raise
 
     async def update_movie(self, movie_id: int, title: str, director: str, year: int, description: str,
-                           actors_ids: list[int]) -> bool:
+                           actors_ids: list[int]) -> None:
         update_movie_query = 'UPDATE movie SET title=?, director=?, year=?, description=? WHERE id=?'
         update_movie_args = (title, director, year, description, movie_id)
         delete_movie_and_actor_relation_query = 'DELETE FROM movie_actor_through WHERE movie_id=?'
@@ -129,12 +131,12 @@ class MovieService:
 
         async with self.lock:
             try:
-                await self.connection.execute("BEGIN")
+                await self.connection.execute("BEGIN IMMEDIATE")
 
                 async with self.connection.execute(update_movie_query, update_movie_args) as cursor:
                     if cursor.rowcount == 0:
                         await self.connection.rollback()
-                        return False
+                        raise MovieNotFoundError(movie_id)
 
                     await self.connection.execute(delete_movie_and_actor_relation_query, (movie_id,))
 
@@ -145,12 +147,13 @@ class MovieService:
 
                     await self.connection.commit()
                     logger.info(f"Successfully updated movie {movie_id}")
-                    return True
 
+            except MovieNotFoundError:
+                raise
             except Exception:
                 await self.connection.rollback()
-                logger.exception(f"Experienced error during movie {movie_id} update")
-                return False
+                logger.exception(f"Database error during update of movie {movie_id}: {title}")
+                raise
 
     async def delete_movie(self, movie_id: int) -> bool:
         select_movie_query = 'SELECT 1 FROM movie WHERE id=?'
@@ -159,25 +162,23 @@ class MovieService:
 
         async with self.lock:
             try:
-                await self.connection.execute("BEGIN")
+                await self.connection.execute("BEGIN IMMEDIATE")
 
                 async with self.connection.execute(select_movie_query, (movie_id,)) as cursor:
                     if not await cursor.fetchone():
                         await self.connection.rollback()
-                        return False
+                        raise MovieNotFoundError(movie_id)
 
                 await self.connection.execute(delete_movie_and_actor_relation_query, (movie_id,))
-
-                cursor = await self.connection.execute(delete_movie_query, (movie_id,))
-                if cursor.rowcount == 0:
-                    await self.connection.rollback()
-                    return False
+                await self.connection.execute(delete_movie_query, (movie_id,))
 
                 await self.connection.commit()
                 logger.info(f"Successfully deleted movie {movie_id}")
                 return True
 
+            except MovieNotFoundError:
+                raise
             except Exception:
                 await self.connection.rollback()
-                logger.exception(f"Experienced error during movie {movie_id} delete")
-                return False
+                logger.exception(f"Database error during deletion of movie {movie_id}")
+                raise
