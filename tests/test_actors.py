@@ -1,4 +1,7 @@
 import pytest
+from fastapi import status
+from main import app
+from database.movies_db_connect import get_db
 
 
 @pytest.mark.asyncio
@@ -30,7 +33,7 @@ async def test_get_all_actors_empty_database(client):
     """Checks if GET /actors returns an empty list when no records exist."""
     response = await client.get("/actors")
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert response.json() == []
 
 
@@ -40,7 +43,7 @@ async def test_get_single_actor_success(client, test_db_conn):
 
     response = await client.get("/actors/1")
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert data["name"] == "Cillian"
     assert data["surname"] == "Murphy"
@@ -54,7 +57,7 @@ async def test_add_actor_success(client, test_db_conn):
     }
 
     response = await client.post("/actors", json=actor_payload)
-    assert response.status_code == 201
+    assert response.status_code == status.HTTP_201_CREATED
     assert response.json() == {"message": "Actor 1 added successfully"}
 
     async with test_db_conn.execute(
@@ -72,7 +75,7 @@ async def test_add_actor_whitespace_cleaning(client, test_db_conn):
         "surname": "  Hanks  "
     }
     response = await client.post("/actors", json=payload)
-    assert response.status_code == 201
+    assert response.status_code == status.HTTP_201_CREATED
 
     async with test_db_conn.execute("SELECT name, surname FROM actor WHERE id = 1") as cursor:
         row = await cursor.fetchone()
@@ -91,7 +94,7 @@ async def test_add_actor_complex_names_success(client, test_db_conn, name, surna
     payload = {"name": name, "surname": surname}
     response = await client.post("/actors", json=payload)
 
-    assert response.status_code == 201
+    assert response.status_code == status.HTTP_201_CREATED
 
     async with test_db_conn.execute("SELECT name, surname FROM actor ORDER BY id DESC LIMIT 1") as cursor:
         row = await cursor.fetchone()
@@ -107,7 +110,7 @@ async def test_add_actor_complex_names_success(client, test_db_conn, name, surna
 ])
 async def test_add_actor_special_chars_validation(client, payload, error_loc):
     response = await client.post("/actors", json=payload)
-    assert response.status_code == 422
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
     assert any(error_loc in err["loc"] for err in response.json()["detail"])
 
 
@@ -123,7 +126,7 @@ async def test_update_actor_success(client, test_db_conn):
     }
 
     response = await client.put(f"/actors/{actor_id}", json=updated_actor_payload)
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert response.json() == {"message": "Actor 1 updated successfully"}
 
     async with test_db_conn.execute(
@@ -192,7 +195,7 @@ async def test_actor_validation_unified(client, test_db_conn, method, url, paylo
         case _:
             raise ValueError(f"Method {method} not supported")
 
-    assert response.status_code == 422
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     response_json = response.json()
     error_details = str(response_json["detail"]).lower()
@@ -212,7 +215,7 @@ async def test_delete_actor_success(client, test_db_conn):
     await test_db_conn.commit()
 
     response = await client.delete("/actors/1")
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert response.json() == {"message": "Actor 1 deleted successfully"}
 
     async with test_db_conn.execute(
@@ -240,7 +243,7 @@ async def test_delete_actor_and_relations_success(client, test_db_conn):
     await test_db_conn.commit()
 
     response = await client.delete("/actors/1")
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
 
     async with test_db_conn.execute(
             "SELECT * FROM movie_actor_through WHERE actor_id = 1"
@@ -269,7 +272,7 @@ async def test_delete_actor_without_movies_success(client, test_db_conn):
 
     response = await client.delete("/actors/5")
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert response.json() == {"message": "Actor 5 deleted successfully"}
 
     async with test_db_conn.execute("SELECT * FROM actor WHERE id = 5") as cursor:
@@ -290,7 +293,7 @@ async def test_get_actor_movies_success(client, test_db_conn):
 
     response = await client.get("/actors/1/movies")
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert len(data) == 2
     assert data[0]["title"] == "Cast Away"
@@ -298,7 +301,7 @@ async def test_get_actor_movies_success(client, test_db_conn):
 
 
 @pytest.mark.parametrize("method", ["GET", "GET_MOVIES", "PUT", "DELETE"])
-async def test_actor_not_found_errors(client, method):
+async def test_not_existing_actor_id(client, method):
     actor_id = 999
     payload = {"name": "Tom", "surname": "Hanks"}
     response = None
@@ -316,7 +319,7 @@ async def test_actor_not_found_errors(client, method):
             raise ValueError(f"Unknown method: {method}")
 
     assert response is not None
-    assert response.status_code == 404
+    assert response.status_code == status.HTTP_404_NOT_FOUND
     assert response.json()["detail"] == f"Actor with ID {actor_id} not found"
 
 
@@ -340,8 +343,106 @@ async def test_actor_id_validation_error(client, method, invalid_id):
         case _:
             raise ValueError(f"Unsupported method: {method}")
 
-    assert response.status_code == 422
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     errors = response.json()["detail"]
     assert any("actor_id" in err["loc"] for err in errors)
     assert any("path" in err["loc"] for err in errors)
+
+
+@pytest.mark.asyncio
+async def test_get_actors_database_crash(client, mocker):
+    mock_db_connection = mocker.AsyncMock()
+    mock_db_connection.execute.side_effect = Exception("Critical Database Failure")
+
+    app.dependency_overrides[get_db] = lambda: mock_db_connection
+    try:
+        response = await client.get("/actors")
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert response.json() == {"detail": "Internal Server Error"}
+    finally:
+        app.dependency_overrides = {}
+
+
+@pytest.mark.asyncio
+async def test_get_single_actor_database_crash(client, mocker):
+    mock_db_connection = mocker.AsyncMock()
+    mock_db_connection.execute.side_effect = Exception("Critical Database Failure")
+
+    app.dependency_overrides[get_db] = lambda: mock_db_connection
+    try:
+        response = await client.get("/actors/1")
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    finally:
+        app.dependency_overrides = {}
+
+
+@pytest.mark.asyncio
+async def test_get_actor_movies_database_crash(client, mocker):
+    mock_db_connection = mocker.AsyncMock()
+    mock_db_connection.execute.side_effect = Exception("Critical Database Failure")
+
+    app.dependency_overrides[get_db] = lambda: mock_db_connection
+    try:
+        response = await client.get("/actors/1/movies")
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    finally:
+        app.dependency_overrides = {}
+
+
+@pytest.mark.asyncio
+async def test_add_actor_database_crash_on_commit(client, mocker):
+    mock_db_connection = mocker.AsyncMock()
+    mock_cursor = mocker.AsyncMock()
+    mock_db_connection.execute.return_value.__aenter__.return_value = mock_cursor
+
+    mock_db_connection.commit.side_effect = Exception("Critical Database Failure")
+
+    app.dependency_overrides[get_db] = lambda: mock_db_connection
+    try:
+        response = await client.post("/actors", json={"name": "John", "surname": "Doe"})
+
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert mock_db_connection.rollback.called
+    finally:
+        app.dependency_overrides = {}
+
+
+@pytest.mark.asyncio
+async def test_update_actor_database_crash_api_response(client, mocker):
+    mock_db_connection = mocker.AsyncMock()
+    mock_cursor = mocker.AsyncMock()
+    mock_cursor.rowcount = 1
+    mock_db_connection.execute.return_value.__aenter__.return_value = mock_cursor
+
+    mock_db_connection.commit.side_effect = Exception("Critical Database Failure")
+
+    app.dependency_overrides[get_db] = lambda: mock_db_connection
+
+    try:
+        response = await client.put("/actors/1", json={"name": "A", "surname": "B"})
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert response.json() == {"detail": "Internal Server Error"}
+        assert mock_db_connection.rollback.called
+
+    finally:
+        app.dependency_overrides = {}
+
+
+@pytest.mark.asyncio
+async def test_delete_actor_database_crash_on_commit(client, mocker):
+    mock_db_connection = mocker.AsyncMock()
+    mock_cursor = mocker.AsyncMock()
+    mock_cursor.rowcount = 1
+    mock_db_connection.execute.return_value.__aenter__.return_value = mock_cursor
+
+    mock_db_connection.commit.side_effect = Exception("Critical Database Failure")
+
+    app.dependency_overrides[get_db] = lambda: mock_db_connection
+    try:
+        response = await client.delete("/actors/1")
+
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert mock_db_connection.rollback.called
+    finally:
+        app.dependency_overrides = {}
