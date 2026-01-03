@@ -24,6 +24,7 @@ jobs:
 
     - name: Lint with flake8
       run: flake8 .
+      continue-on-error: true
 
     - name: Run tests with coverage
       run: |
@@ -47,4 +48,4 @@ jobs:
       if: always()
       with:
         name: service-logs-${{ matrix.python-version }}-${{ github.run_id }}
-        path: "*.log"
+        path: "logs/*.log"

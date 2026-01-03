@@ -23,16 +23,26 @@ async def get_movies(service: MovieService = Depends(get_movie_service)):
 
 
 @router.get('/{movie_id}', response_model=MovieResponse)
-async def get_single_movie(movie_id: int = Path(..., ge=1, description="Movie ID should be greater or equal 1"),
-                           service: MovieService = Depends(get_movie_service)):
+async def get_single_movie(movie_id: int = Path(
+    ...,
+    ge=1,
+    description="Movie ID should be greater or equal 1"),
+        service: MovieService = Depends(get_movie_service)
+):
     movie = await service.get_movie(movie_id)
     if movie is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Movie with ID {movie_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Movie with ID {movie_id} not found"
+        )
     return movie
 
 
 @router.post('', status_code=status.HTTP_201_CREATED)
-async def add_movie(movie_data: MovieCreateRequest, service: MovieService = Depends(get_movie_service)):
+async def add_movie(
+        movie_data: MovieCreateRequest,
+        service: MovieService = Depends(get_movie_service)
+):
     movie_id = await service.add_movie(
         title=movie_data.title,
         director=movie_data.director,
@@ -45,9 +55,15 @@ async def add_movie(movie_data: MovieCreateRequest, service: MovieService = Depe
 
 
 @router.put('/{movie_id}')
-async def update_movie(movie_data: MovieUpdateRequest,
-                       movie_id: int = Path(..., ge=1, description="Movie ID should be greater or equal 1"),
-                       service: MovieService = Depends(get_movie_service)):
+async def update_movie(
+        movie_data: MovieUpdateRequest,
+        movie_id: int = Path(
+            ...,
+            ge=1,
+            description="Movie ID should be greater or equal 1"
+        ),
+        service: MovieService = Depends(get_movie_service)
+):
     try:
         await service.update_movie(
             movie_id=movie_id,
@@ -64,8 +80,14 @@ async def update_movie(movie_data: MovieUpdateRequest,
 
 
 @router.delete('/{movie_id}')
-async def delete_movie(movie_id: int = Path(..., ge=1, description="Movie ID should be greater or equal 1"),
-                       service: MovieService = Depends(get_movie_service)):
+async def delete_movie(
+        movie_id: int = Path(
+            ...,
+            ge=1,
+            description="Movie ID should be greater or equal 1"
+        ),
+        service: MovieService = Depends(get_movie_service)
+):
     try:
         await service.delete_movie(movie_id)
         return {"message": f"Movie {movie_id} deleted successfully"}

@@ -38,7 +38,10 @@ async def test_get_all_actors_empty_database(client):
 
 
 async def test_get_single_actor_success(client, test_db_conn):
-    await test_db_conn.execute("INSERT INTO actor (name, surname) VALUES (?, ?)", ("Cillian", "Murphy"))
+    await test_db_conn.execute(
+        "INSERT INTO actor (name, surname) VALUES (?, ?)",
+        ("Cillian", "Murphy")
+    )
     await test_db_conn.commit()
 
     response = await client.get("/actors/1")
@@ -77,7 +80,9 @@ async def test_add_actor_whitespace_cleaning(client, test_db_conn):
     response = await client.post("/actors", json=payload)
     assert response.status_code == status.HTTP_201_CREATED
 
-    async with test_db_conn.execute("SELECT name, surname FROM actor WHERE id = 1") as cursor:
+    async with test_db_conn.execute(
+            "SELECT name, surname FROM actor WHERE id = 1"
+    ) as cursor:
         row = await cursor.fetchone()
         assert row[0] == "Tom"
         assert row[1] == "Hanks"
@@ -96,7 +101,9 @@ async def test_add_actor_complex_names_success(client, test_db_conn, name, surna
 
     assert response.status_code == status.HTTP_201_CREATED
 
-    async with test_db_conn.execute("SELECT name, surname FROM actor ORDER BY id DESC LIMIT 1") as cursor:
+    async with test_db_conn.execute(
+            "SELECT name, surname FROM actor ORDER BY id DESC LIMIT 1"
+    ) as cursor:
         row = await cursor.fetchone()
         assert row['name'] == name
         assert row['surname'] == surname
@@ -116,7 +123,10 @@ async def test_add_actor_special_chars_validation(client, payload, error_loc):
 
 async def test_update_actor_success(client, test_db_conn):
     actors = [('Old Name', 'Old Surname'), ('Tom', 'Hardy')]
-    await test_db_conn.executemany("INSERT INTO actor (name, surname) VALUES (?, ?)", actors)
+    await test_db_conn.executemany(
+        "INSERT INTO actor (name, surname) VALUES (?, ?)",
+        actors
+    )
     await test_db_conn.commit()
 
     actor_id = 1
@@ -211,7 +221,10 @@ async def test_actor_validation_unified(client, test_db_conn, method, url, paylo
 
 async def test_delete_actor_success(client, test_db_conn):
     actors = [('Tom', 'Hanks'), ('Tom', 'Hardy')]
-    await test_db_conn.executemany("INSERT INTO actor (name, surname) VALUES (?, ?)", actors)
+    await test_db_conn.executemany(
+        "INSERT INTO actor (name, surname) VALUES (?, ?)",
+        actors
+    )
     await test_db_conn.commit()
 
     response = await client.delete("/actors/1")
@@ -233,9 +246,13 @@ async def test_delete_actor_success(client, test_db_conn):
 
 async def test_delete_actor_and_relations_success(client, test_db_conn):
     actors = [('Tom', 'Hanks'), ('Tom', 'Hardy')]
-    await test_db_conn.executemany("INSERT INTO actor (name, surname) VALUES (?, ?)", actors)
+    await test_db_conn.executemany(
+        "INSERT INTO actor (name, surname) VALUES (?, ?)",
+        actors
+    )
     await test_db_conn.execute(
-        "INSERT INTO movie (id, title, director, year) VALUES (10, 'Inception', 'Nolan', 2010)"
+        "INSERT INTO movie (id, title, director, year) "
+        "VALUES (10, 'Inception', 'Nolan', 2010)"
     )
     await test_db_conn.execute(
         "INSERT INTO movie_actor_through (movie_id, actor_id) VALUES (10, 1)"
@@ -267,7 +284,10 @@ async def test_delete_actor_and_relations_success(client, test_db_conn):
 
 async def test_delete_actor_without_movies_success(client, test_db_conn):
     """Checks if deleting an actor without any movie relations works correctly."""
-    await test_db_conn.execute("INSERT INTO actor (id, name, surname) VALUES (5, 'Tom', 'Hanks')")
+    await test_db_conn.execute(
+        "INSERT INTO actor (id, name, surname) VALUES (?, ?, ?)",
+        (5, 'Tom', 'Hanks')
+    )
     await test_db_conn.commit()
 
     response = await client.delete("/actors/5")
@@ -280,7 +300,10 @@ async def test_delete_actor_without_movies_success(client, test_db_conn):
 
 
 async def test_get_actor_movies_success(client, test_db_conn):
-    await test_db_conn.execute("INSERT INTO actor (id, name, surname) VALUES (1, 'Tom', 'Hanks')")
+    await test_db_conn.execute(
+        "INSERT INTO actor (id, name, surname) VALUES (?, ?, ?)",
+        (1, 'Tom', 'Hanks')
+    )
     await test_db_conn.executemany(
         "INSERT INTO movie (id, title, director, year, description) VALUES (?, ?, ?, ?, ?)",
         [(10, 'Cast Away', 'Zemeckis', 2000, 'Island'), (11, 'Sully', 'Eastwood', 2016, 'Plane')]

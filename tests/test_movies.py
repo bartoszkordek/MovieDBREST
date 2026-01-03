@@ -36,7 +36,7 @@ async def test_get_single_movie_success(client, test_db_conn):
     await test_db_conn.execute("INSERT INTO movie_actor_through (movie_id, actor_id) VALUES (10, 1)")
     await test_db_conn.commit()
 
-    response = await client.get(f"/movies/10")
+    response = await client.get("/movies/10")
 
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
@@ -120,7 +120,7 @@ async def test_update_movie_success(client, test_db_conn):
         "actors": [2, 3]
     }
 
-    response = await client.put(f"/movies/1", json=updated_movie_payload)
+    response = await client.put("/movies/1", json=updated_movie_payload)
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {"message": "Movie 1 updated successfully"}
 
@@ -202,7 +202,7 @@ async def test_delete_movie_success(client, test_db_conn):
     )
     await test_db_conn.commit()
 
-    response = await client.delete(f"/movies/1")
+    response = await client.delete("/movies/1")
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {"message": "Movie 1 deleted successfully"}
 
