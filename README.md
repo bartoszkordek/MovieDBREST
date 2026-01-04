@@ -115,7 +115,7 @@ pytest
 ```
   
 ##  🖥 Running the Application
-You can start the development server using the FastAPI CLI (preferred in 2025):
+You can start the development server using the FastAPI CLI:
 ```
 fastapi dev main.py
 ```
