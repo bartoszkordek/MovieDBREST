@@ -52,6 +52,39 @@ async def test_get_single_movie_success(client, test_db_conn):
     assert data["actors"][0]["surname"] == "Hanks"
 
 
+async def test_get_movie_actors_success(client, test_db_conn):
+    await test_db_conn.execute("INSERT INTO actor (id, name, surname) VALUES (1, 'Tom', 'Hanks')")
+    await test_db_conn.execute(
+        "INSERT INTO movie (id, title, director, year) VALUES (10, 'Sully', 'Clint Eastwood', 2016)")
+    await test_db_conn.execute("INSERT INTO movie_actor_through (movie_id, actor_id) VALUES (10, 1)")
+    await test_db_conn.commit()
+
+    response = await client.get("/movies/10/actors")
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["id"] == 1
+    assert data[0]["name"] == "Tom"
+    assert data[0]["surname"] == "Hanks"
+
+
+async def test_get_movie_actors_empty_list(client, test_db_conn):
+    await test_db_conn.execute(
+        "INSERT INTO movie (id, title, director, year) VALUES (20, ' The Dark Knight', 'Christopher Nolan', 2008)"
+    )
+    await test_db_conn.commit()
+
+    response = await client.get("/movies/20/actors")
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+
+    assert len(data) == 0
+    assert data == []
+
+
 async def test_add_movie_success(client, test_db_conn):
     await test_db_conn.execute("INSERT INTO actor (name, surname) VALUES ('Tom', 'Hardy')")
     await test_db_conn.commit()
@@ -217,10 +250,15 @@ async def test_delete_movie_success(client, test_db_conn):
         assert count == 3
 
 
-@pytest.mark.parametrize("method", ["GET", "PUT", "DELETE"])
-async def test_not_existing_movie_id(client, method):
+@pytest.mark.parametrize("method, sub_path", [
+    ("GET", ""),  # /movies/999
+    ("GET", "/actors"),  # /movies/999/actors
+    ("PUT", ""),  # /movies/999
+    ("DELETE", "")  # /movies/999
+])
+async def test_not_existing_movie_id(client, method, sub_path):
     not_existing_movie_id = 999
-    url = f"/movies/{not_existing_movie_id}"
+    url = f"/movies/{not_existing_movie_id}{sub_path}"
 
     response = None
     match method:
@@ -311,6 +349,34 @@ async def test_update_movie_database_crash_on_commit(client, mocker):
         assert mock_db_connection.rollback.called
     finally:
         app.dependency_overrides = {}
+
+
+async def test_delete_all_movies_success(client, test_db_conn):
+    await test_db_conn.execute("INSERT INTO actor (id, name, surname) VALUES (1, 'Tom', 'Hanks')")
+    await test_db_conn.execute(
+        "INSERT INTO movie (id, title, director, year) VALUES (10, 'Sully', 'Clint Eastwood', 2016)")
+    await test_db_conn.execute("INSERT INTO movie_actor_through (movie_id, actor_id) VALUES (10, 1)")
+    await test_db_conn.commit()
+
+    response = await client.delete("/movies")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == {"message": "Movies deleted successfully"}
+
+    async with test_db_conn.execute("SELECT COUNT(*) FROM movie") as cursor:
+        row = await cursor.fetchone()
+        assert row[0] == 0
+
+    async with test_db_conn.execute("SELECT COUNT(*) FROM movie_actor_through") as cursor:
+        row = await cursor.fetchone()
+        assert row[0] == 0
+
+
+async def test_delete_all_movies_empty_database(client):
+    response = await client.delete("/movies")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert "successfully" in response.json()["message"]
 
 
 @pytest.mark.asyncio
