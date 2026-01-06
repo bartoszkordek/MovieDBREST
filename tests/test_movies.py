@@ -250,10 +250,15 @@ async def test_delete_movie_success(client, test_db_conn):
         assert count == 3
 
 
-@pytest.mark.parametrize("method", ["GET", "PUT", "DELETE"])
-async def test_not_existing_movie_id(client, method):
+@pytest.mark.parametrize("method, sub_path", [
+    ("GET", ""),  # /movies/999
+    ("GET", "/actors"),  # /movies/999/actors
+    ("PUT", ""),  # /movies/999
+    ("DELETE", "")  # /movies/999
+])
+async def test_not_existing_movie_id(client, method, sub_path):
     not_existing_movie_id = 999
-    url = f"/movies/{not_existing_movie_id}"
+    url = f"/movies/{not_existing_movie_id}{sub_path}"
 
     response = None
     match method:
