@@ -313,6 +313,34 @@ async def test_update_movie_database_crash_on_commit(client, mocker):
         app.dependency_overrides = {}
 
 
+async def test_delete_all_movies_success(client, test_db_conn):
+    await test_db_conn.execute("INSERT INTO actor (id, name, surname) VALUES (1, 'Tom', 'Hanks')")
+    await test_db_conn.execute(
+        "INSERT INTO movie (id, title, director, year) VALUES (10, 'Sully', 'Clint Eastwood', 2016)")
+    await test_db_conn.execute("INSERT INTO movie_actor_through (movie_id, actor_id) VALUES (10, 1)")
+    await test_db_conn.commit()
+
+    response = await client.delete("/movies")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == {"message": "Movies deleted successfully"}
+
+    async with test_db_conn.execute("SELECT COUNT(*) FROM movie") as cursor:
+        row = await cursor.fetchone()
+        assert row[0] == 0
+
+    async with test_db_conn.execute("SELECT COUNT(*) FROM movie_actor_through") as cursor:
+        row = await cursor.fetchone()
+        assert row[0] == 0
+
+
+async def test_delete_all_movies_empty_database(client):
+    response = await client.delete("/movies")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert "successfully" in response.json()["message"]
+
+
 @pytest.mark.asyncio
 async def test_delete_movie_database_crash_on_commit(client, mocker):
     mock_db_connection = mocker.AsyncMock()

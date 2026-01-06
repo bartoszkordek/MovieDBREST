@@ -216,6 +216,35 @@ class MovieService:
                 )
                 raise
 
+    async def delete_movies(self) -> bool:
+        delete_movie_and_actor_relations_query = """
+            DELETE FROM movie_actor_through
+        """
+        delete_movies_query = 'DELETE FROM movie'
+
+        async with self.lock:
+            try:
+                await self.connection.execute("BEGIN IMMEDIATE")
+                await self.connection.execute(
+                    delete_movie_and_actor_relations_query
+                )
+                await self.connection.execute(
+                    delete_movies_query
+                )
+
+                await self.connection.commit()
+                logger.info("Successfully deleted all movies and relations")
+                return True
+
+            except MovieNotFoundError:
+                raise
+            except Exception:
+                await self.connection.rollback()
+                logger.exception(
+                    "Database error during deletion of all movies"
+                )
+                raise
+
     async def delete_movie(self, movie_id: int) -> bool:
         select_movie_query = 'SELECT 1 FROM movie WHERE id=?'
         delete_movie_and_actor_relation_query = """

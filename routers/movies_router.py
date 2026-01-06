@@ -79,6 +79,12 @@ async def update_movie(
         raise HTTPException(status_code=404, detail=e.message)
 
 
+@router.delete('')
+async def delete_movies(service: MovieService = Depends(get_movie_service)):
+    await service.delete_movies()
+    return {"message": f"Movies deleted successfully"}
+
+
 @router.delete('/{movie_id}')
 async def delete_movie(
         movie_id: int = Path(
