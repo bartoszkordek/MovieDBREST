@@ -52,6 +52,39 @@ async def test_get_single_movie_success(client, test_db_conn):
     assert data["actors"][0]["surname"] == "Hanks"
 
 
+async def test_get_movie_actors_success(client, test_db_conn):
+    await test_db_conn.execute("INSERT INTO actor (id, name, surname) VALUES (1, 'Tom', 'Hanks')")
+    await test_db_conn.execute(
+        "INSERT INTO movie (id, title, director, year) VALUES (10, 'Sully', 'Clint Eastwood', 2016)")
+    await test_db_conn.execute("INSERT INTO movie_actor_through (movie_id, actor_id) VALUES (10, 1)")
+    await test_db_conn.commit()
+
+    response = await client.get("/movies/10/actors")
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["id"] == 1
+    assert data[0]["name"] == "Tom"
+    assert data[0]["surname"] == "Hanks"
+
+
+async def test_get_movie_actors_empty_list(client, test_db_conn):
+    await test_db_conn.execute(
+        "INSERT INTO movie (id, title, director, year) VALUES (20, ' The Dark Knight', 'Christopher Nolan', 2008)"
+    )
+    await test_db_conn.commit()
+
+    response = await client.get("/movies/20/actors")
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+
+    assert len(data) == 0
+    assert data == []
+
+
 async def test_add_movie_success(client, test_db_conn):
     await test_db_conn.execute("INSERT INTO actor (name, surname) VALUES ('Tom', 'Hardy')")
     await test_db_conn.commit()

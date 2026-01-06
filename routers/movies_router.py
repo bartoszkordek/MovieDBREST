@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends, Path, status
 
 from database.movies_db_connect import get_db, db_write_lock
 from exceptions import MovieNotFoundError
-from schemas import MovieCreateRequest, MovieUpdateRequest, MovieResponse
+from schemas import MovieCreateRequest, MovieUpdateRequest, MovieResponse, ActorResponse
 from services.movie_service import MovieService
 
 router = APIRouter(
@@ -36,6 +36,22 @@ async def get_single_movie(movie_id: int = Path(
             detail=f"Movie with ID {movie_id} not found"
         )
     return movie
+
+
+@router.get('/{movie_id}/actors', response_model=list[ActorResponse])
+async def get_movie_actors(movie_id: int = Path(
+    ...,
+    ge=1,
+    description="Movie ID should be greater or equal 1"),
+        service: MovieService = Depends(get_movie_service)
+):
+    movie = await service.get_movie(movie_id)
+    if movie is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Movie with ID {movie_id} not found"
+        )
+    return movie['actors']
 
 
 @router.post('', status_code=status.HTTP_201_CREATED)
